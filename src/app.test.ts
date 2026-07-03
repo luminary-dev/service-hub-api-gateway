@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { SignJWT } from "jose";
 import { app } from "./app";
 
-const DEV_SECRET = new TextEncoder().encode("dev-only-secret");
+// Sign with the same secret session.ts resolved at import time: AUTH_SECRET
+// when the environment provides one (CI does), else the shared dev fallback.
+const DEV_SECRET = new TextEncoder().encode(
+  process.env.AUTH_SECRET ?? "dev-only-secret"
+);
 
 async function signSession(payload: Record<string, unknown>) {
   return new SignJWT(payload)
