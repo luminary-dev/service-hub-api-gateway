@@ -1,0 +1,43 @@
+name: Add issues to project board
+
+# Syncs every newly opened issue onto the org-wide Service Hub board
+# (https://github.com/orgs/luminary-dev/projects/1) with Status=Backlog and
+# the Service field set for this repo. Adding is idempotent — an issue can
+# only appear on the board once — and the built-in auto-add workflow must
+# stay OFF to keep a single sync path.
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  add-to-board:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add issue to board
+        id: add
+        uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: https://github.com/orgs/luminary-dev/projects/1
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+
+      - name: Set Status=Backlog and Service
+        env:
+          GH_TOKEN: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          ITEM_ID: ${{ steps.add.outputs.itemId }}
+        run: |
+          gh api graphql -f item="$ITEM_ID" -f query='
+            mutation($item: ID!) {
+              status: updateProjectV2ItemFieldValue(input: {
+                projectId: "PVT_kwDOD0HlNc4Bcax8", itemId: $item,
+                fieldId: "PVTSSF_lADOD0HlNc4Bcax8zhXDxPc",
+                value: { singleSelectOptionId: "c261ff04" }
+              }) { clientMutationId }
+              service: updateProjectV2ItemFieldValue(input: {
+                projectId: "PVT_kwDOD0HlNc4Bcax8", itemId: $item,
+                fieldId: "PVTSSF_lADOD0HlNc4Bcax8zhXDxSs",
+                value: { singleSelectOptionId: "d0558e11" }
+              }) { clientMutationId }
+            }'
