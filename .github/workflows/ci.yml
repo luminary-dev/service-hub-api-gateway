@@ -1,20 +1,32 @@
 name: CI
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
-  pull_request:
+
+permissions:
+  contents: read
+
+# Dummy values so prisma generate / module init don't need real secrets.
+env:
+  DATABASE_URL: "postgresql://user:password@localhost:5432/db?schema=public"
+  AUTH_SECRET: "ci-dummy-secret"
 
 jobs:
-  ci:
+  check:
+    name: api-gateway / ${{ matrix.check }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test, build]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: npm run ${{ matrix.check }}
