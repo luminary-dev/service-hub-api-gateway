@@ -204,6 +204,26 @@ describe("identity headers", () => {
   });
 });
 
+describe("request id", () => {
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+  it("sets a generated x-request-id on upstream requests", async () => {
+    const res = await app.request("/api/providers");
+    expect(res.status).toBe(200);
+    expect(upstreamRequests[0].headers.get("x-request-id")).toMatch(UUID_RE);
+  });
+
+  it("strips a client-sent x-request-id and uses its own (no spoofing)", async () => {
+    await app.request("/api/providers", {
+      headers: { "x-request-id": "spoofed-id" },
+    });
+    const forwarded = upstreamRequests[0].headers.get("x-request-id");
+    expect(forwarded).not.toBe("spoofed-id");
+    expect(forwarded).toMatch(UUID_RE);
+  });
+});
+
 describe("session revocation", () => {
   beforeEach(() => {
     clearSessionVersionCache();

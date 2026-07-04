@@ -1,12 +1,15 @@
 import { Hono } from "hono";
-import { logger } from "hono/logger";
 import { csrfMiddleware } from "./lib/csrf";
+import { log } from "./lib/log";
+import { getRequestId, requestLogger } from "./lib/logging";
 import { proxyRequest } from "./lib/proxy";
 import { rateLimitMiddleware } from "./lib/rate-limit";
 
 export const app = new Hono();
 
-app.use(logger());
+// Public edge: never trust a client-sent x-request-id — generate our own here
+// and propagate it upstream (see lib/proxy.ts buildUpstreamHeaders).
+app.use(requestLogger(log, { trustRequestId: false }));
 
 // Public entry — no internal-secret check here; the gateway ADDS the secret
 // to upstream requests instead.
@@ -18,6 +21,6 @@ app.all("/api/*", proxyRequest);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {
-  console.error(err);
+  log.error("unhandled error", { requestId: getRequestId(c), err });
   return c.json({ error: "Internal server error" }, 500);
 });

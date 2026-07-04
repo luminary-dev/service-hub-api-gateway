@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
 import { proxy } from "hono/proxy";
+import { log } from "./log";
+import { getRequestId } from "./logging";
 import { resolveRoute, serviceUrl } from "./routes";
 import { SESSION_COOKIE, verifySessionToken } from "./session";
 import { sessionVersionOk } from "./session-version";
@@ -23,6 +26,7 @@ const GATEWAY_HEADERS = [
   "x-internal-secret",
   "x-locale",
   "x-origin",
+  "x-request-id",
 ];
 
 // Public web origin, forwarded so services can build absolute links (emails).
@@ -64,6 +68,9 @@ export async function buildUpstreamHeaders(
   );
   headers.set("x-locale", getCookie(c, "lang") === "si" ? "si" : "en");
   headers.set("x-origin", resolveOrigin(c));
+  // The gateway-generated request id (see app.ts requestLogger) follows the
+  // request across services — client-sent values were stripped above.
+  headers.set("x-request-id", getRequestId(c) ?? randomUUID());
 
   return headers;
 }
@@ -93,7 +100,11 @@ export async function proxyRequest(c: Context) {
   try {
     return await proxy(target, { method, headers, body });
   } catch (err) {
-    console.error(`upstream ${route.service} failed:`, err);
+    log.error("upstream request failed", {
+      upstream: route.service,
+      requestId: getRequestId(c),
+      err,
+    });
     return c.json({ error: "Upstream service unavailable" }, 502);
   }
 }
