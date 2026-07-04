@@ -9,6 +9,20 @@ describe("resolveRoute (routing table)", () => {
     expect(resolveRoute("/api/favorites/prov-1")).toEqual({ service: "identity", path: "/api/favorites/prov-1" });
   });
 
+  it("routes account history to the owning services", () => {
+    expect(resolveRoute("/api/account/inquiries")).toEqual({
+      service: "provider",
+      path: "/api/account/inquiries",
+    });
+    expect(resolveRoute("/api/account/reviews")).toEqual({
+      service: "review",
+      path: "/api/account/reviews",
+    });
+    expect(resolveRoute("/api/account")).toBeNull();
+    expect(resolveRoute("/api/account/other")).toBeNull();
+    expect(resolveRoute("/api/account/inquiries/x")).toBeNull();
+  });
+
   it("routes provider reviews to review-service (carve-out)", () => {
     expect(resolveRoute("/api/providers/prov-1/reviews")).toEqual({
       service: "review",

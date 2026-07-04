@@ -22,6 +22,15 @@ export function resolveRoute(pathname: string): ResolvedRoute | null {
     };
   }
 
+  // Customer account history (#46): exact paths, each owned by the service
+  // that holds the data.
+  if (pathname === "/api/account/inquiries") {
+    return { service: "provider", path: pathname };
+  }
+  if (pathname === "/api/account/reviews") {
+    return { service: "review", path: pathname };
+  }
+
   // Review routes carved out of the provider/admin namespaces.
   if (/^\/api\/providers\/[^/]+\/reviews$/.test(pathname)) {
     return { service: "review", path: pathname };
