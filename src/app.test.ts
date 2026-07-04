@@ -117,16 +117,16 @@ describe("rate limiting", () => {
     expect((await mk("198.51.100.2")).status).toBe(200);
   });
 
-  it("rate-limits change-password with the strict auth budget", async () => {
-    const headers = {
-      "sec-fetch-site": "same-origin",
-      "x-forwarded-for": "203.0.113.88",
-    };
+  it.each([
+    ["/api/auth/change-password", "203.0.113.88"],
+    ["/api/auth/delete-account", "203.0.113.89"],
+  ])("rate-limits %s with the strict auth budget", async (path, ip) => {
+    const headers = { "sec-fetch-site": "same-origin", "x-forwarded-for": ip };
     for (let i = 0; i < 8; i++) {
-      const res = await app.request("/api/auth/change-password", { method: "POST", headers });
+      const res = await app.request(path, { method: "POST", headers });
       expect(res.status).toBe(200);
     }
-    const blocked = await app.request("/api/auth/change-password", { method: "POST", headers });
+    const blocked = await app.request(path, { method: "POST", headers });
     expect(blocked.status).toBe(429);
   });
 
