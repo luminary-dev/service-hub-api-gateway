@@ -3,6 +3,7 @@ import { getCookie } from "hono/cookie";
 import { proxy } from "hono/proxy";
 import { resolveRoute, serviceUrl } from "./routes";
 import { SESSION_COOKIE, verifySessionToken } from "./session";
+import { sessionVersionOk } from "./session-version";
 
 // Hop-by-hop headers never forwarded upstream (host is re-set to the upstream).
 const HOP_BY_HOP = [
@@ -44,12 +45,13 @@ export async function buildUpstreamHeaders(
   for (const name of GATEWAY_HEADERS) headers.delete(name);
   headers.set("host", upstreamHost);
 
-  // Verified session → identity headers. Invalid/absent → forwarded without
-  // them (services decide 401s); never an error here.
+  // Verified session → identity headers. Invalid/absent/revoked → forwarded
+  // without them (services decide 401s); never an error here. Revocation:
+  // the token's sv must still match the user's current sessionVersion.
   const token = getCookie(c, SESSION_COOKIE);
   if (token) {
     const session = await verifySessionToken(token);
-    if (session) {
+    if (session && (await sessionVersionOk(session.userId, session.sv))) {
       headers.set("x-user-id", session.userId);
       headers.set("x-user-role", session.role);
       headers.set("x-user-name", encodeURIComponent(session.name));

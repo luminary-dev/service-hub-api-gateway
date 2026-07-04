@@ -14,6 +14,10 @@ export type SessionPayload = {
   userId: string;
   role: string;
   name: string;
+  // User.sessionVersion at mint time; tokens minted before a bump (password
+  // change/reset, logout-everywhere) are revoked. Tokens from before this
+  // scheme carry no sv and count as version 0.
+  sv: number;
 };
 
 // Verifies the sh_session JWT (HS256, signed by identity-service). Invalid or
@@ -30,6 +34,7 @@ export async function verifySessionToken(
       userId: payload.userId as string,
       role: payload.role as string,
       name: payload.name as string,
+      sv: typeof payload.sv === "number" ? payload.sv : 0,
     };
   } catch {
     return null;
