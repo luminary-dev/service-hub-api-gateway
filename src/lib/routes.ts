@@ -48,6 +48,7 @@ export function resolveRoute(pathname: string): ResolvedRoute | null {
     pathname === "/api/providers" ||
     pathname.startsWith("/api/providers/") ||
     pathname.startsWith("/api/provider/") ||
+    pathname === "/api/categories" ||
     pathname === "/api/stats"
   ) {
     return { service: "provider", path: pathname };

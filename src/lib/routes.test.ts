@@ -57,6 +57,21 @@ describe("resolveRoute (routing table)", () => {
     expect(resolveRoute("/api/stats")).toEqual({ service: "provider", path: "/api/stats" });
   });
 
+  it("routes categories to provider-service", () => {
+    expect(resolveRoute("/api/categories")).toEqual({
+      service: "provider",
+      path: "/api/categories",
+    });
+    expect(resolveRoute("/api/admin/categories")).toEqual({
+      service: "provider",
+      path: "/api/admin/categories",
+    });
+    expect(resolveRoute("/api/admin/categories/plumber")).toEqual({
+      service: "provider",
+      path: "/api/admin/categories/plumber",
+    });
+  });
+
   it("routes jobs to job-service", () => {
     expect(resolveRoute("/api/jobs")).toEqual({ service: "job", path: "/api/jobs" });
     expect(resolveRoute("/api/jobs/board")).toEqual({ service: "job", path: "/api/jobs/board" });
