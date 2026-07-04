@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { Context, Next } from "hono";
+import { Redis } from "ioredis";
 
 export type RateRule = { limit: number; windowMs: number };
 
@@ -50,11 +52,93 @@ export function clientIp(c: Context): string {
   return c.req.header("x-real-ip") ?? "unknown";
 }
 
+// ---------------------------------------------------------------------------
+// Distributed backend (#117): when REDIS_URL is set the window lives in Redis
+// (shared across gateway instances/restarts); otherwise the in-memory store
+// above applies. Redis failures FALL BACK to the in-memory check — degraded
+// per-instance limiting beats returning errors or no limiting at all.
+// ---------------------------------------------------------------------------
+
+// Minimal command surface so tests can inject a fake.
+export type RedisCommands = {
+  zremrangebyscore(key: string, min: number | string, max: number | string): Promise<number>;
+  zadd(key: string, score: number, member: string): Promise<unknown>;
+  zcard(key: string): Promise<number>;
+  zrem(key: string, member: string): Promise<number>;
+  zrange(key: string, start: number, stop: number, withScores: "WITHSCORES"): Promise<string[]>;
+  pexpire(key: string, ms: number): Promise<number>;
+};
+
+// Sliding window over a sorted set: drop expired hits, optimistically add
+// this one, then count. Over the limit → remove our member again and report
+// when the oldest hit leaves the window. The add-then-count order keeps
+// concurrent requests from double-spending the last slot.
+export async function checkRateLimitRedis(
+  redis: RedisCommands,
+  key: string,
+  rule: RateRule,
+  now = Date.now()
+) {
+  const windowStart = now - rule.windowMs;
+  const member = `${now}:${randomUUID()}`;
+  await redis.zremrangebyscore(key, 0, windowStart);
+  await redis.zadd(key, now, member);
+  const count = await redis.zcard(key);
+  await redis.pexpire(key, rule.windowMs);
+
+  if (count <= rule.limit) {
+    return { success: true, remaining: rule.limit - count, retryAfterMs: 0 };
+  }
+
+  await redis.zrem(key, member);
+  const oldest = await redis.zrange(key, 0, 0, "WITHSCORES");
+  const oldestScore = oldest.length >= 2 ? Number(oldest[1]) : now;
+  return {
+    success: false,
+    remaining: 0,
+    retryAfterMs: Math.max(0, oldestScore + rule.windowMs - now),
+  };
+}
+
+// undefined = not initialized yet; null = no REDIS_URL configured.
+let redisClient: RedisCommands | null | undefined;
+
+function getRedis(): RedisCommands | null {
+  if (redisClient !== undefined) return redisClient;
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    redisClient = null;
+    return null;
+  }
+  // Fail fast while disconnected (no offline queue) so a Redis outage drops
+  // straight into the in-memory fallback instead of stalling requests.
+  redisClient = new Redis(url, {
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
+  });
+  return redisClient;
+}
+
 // Returns a 429 response when the caller is over the limit, otherwise null.
-export function rateLimit(c: Context, name: string, rule: RateRule): Response | null {
-  const { success, retryAfterMs } = checkRateLimit(`${name}:${clientIp(c)}`, rule);
-  if (success) return null;
-  const retryAfter = Math.max(1, Math.ceil(retryAfterMs / 1000));
+export async function rateLimit(
+  c: Context,
+  name: string,
+  rule: RateRule
+): Promise<Response | null> {
+  const key = `${name}:${clientIp(c)}`;
+  const redis = getRedis();
+  let result: { success: boolean; retryAfterMs: number };
+  if (redis) {
+    try {
+      result = await checkRateLimitRedis(redis, `rl:${key}`, rule);
+    } catch {
+      result = checkRateLimit(key, rule);
+    }
+  } else {
+    result = checkRateLimit(key, rule);
+  }
+  if (result.success) return null;
+  const retryAfter = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
   return c.json(
     { error: "Too many requests. Please slow down and try again shortly." },
     429,
@@ -86,7 +170,7 @@ export async function rateLimitMiddleware(c: Context, next: Next) {
     const pathname = new URL(c.req.url).pathname;
     for (const route of LIMITED_ROUTES) {
       if (route.pattern.test(pathname)) {
-        const limited = rateLimit(c, route.name, route.rule);
+        const limited = await rateLimit(c, route.name, route.rule);
         if (limited) return limited;
         break;
       }
