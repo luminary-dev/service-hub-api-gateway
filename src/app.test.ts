@@ -145,6 +145,17 @@ describe("rate limiting", () => {
     expect(blocked.status).toBe(429);
   });
 
+  it("rate-limits thread messages with the conversational budget", async () => {
+    const headers = { "sec-fetch-site": "same-origin", "x-forwarded-for": "203.0.113.90" };
+    // message budget: 30 per 10 minutes.
+    for (let i = 0; i < 30; i++) {
+      const res = await app.request("/api/inquiries/inq-1/messages", { method: "POST", headers });
+      expect(res.status).toBe(200);
+    }
+    const blocked = await app.request("/api/inquiries/inq-1/messages", { method: "POST", headers });
+    expect(blocked.status).toBe(429);
+  });
+
   it("does not rate-limit unlisted routes", async () => {
     for (let i = 0; i < 15; i++) {
       const res = await app.request("/api/auth/logout", {

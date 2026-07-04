@@ -11,6 +11,7 @@ export const RATE_LIMITS = {
   resend: { limit: 4, windowMs: 15 * 60_000 }, // resend verification email
   inquiry: { limit: 6, windowMs: 10 * 60_000 }, // inquiry creation — anti-spam
   review: { limit: 10, windowMs: 60 * 60_000 }, // review submission
+  message: { limit: 30, windowMs: 10 * 60_000 }, // thread messages - conversational
 } as const;
 
 // In-memory sliding-window store. This state is per-instance and resets on
@@ -163,6 +164,8 @@ const LIMITED_ROUTES: { pattern: RegExp; name: string; rule: RateRule }[] = [
   { pattern: /^\/api\/providers\/[^/]+\/inquiries$/, name: "inquiry", rule: RATE_LIMITS.inquiry },
   { pattern: /^\/api\/jobs\/[^/]+\/responses$/, name: "job-response", rule: RATE_LIMITS.review },
   { pattern: /^\/api\/providers\/[^/]+\/reviews$/, name: "review", rule: RATE_LIMITS.review },
+  // Thread messages (#13) are conversational - wider budget than one-shot forms.
+  { pattern: /^\/api\/inquiries\/[^/]+\/messages$/, name: "message", rule: RATE_LIMITS.message },
   // Abuse reports (#50) accept anonymous submissions, so the IP budget is the
   // main spam control. One shared "report" bucket across the three target
   // types, on the review budget.

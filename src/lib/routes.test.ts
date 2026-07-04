@@ -150,6 +150,15 @@ describe("resolveRoute (routing table)", () => {
     expect(resolveRoute("/internal/users")).toBeNull();
   });
 
+  it("routes inquiry message threads to provider-service", () => {
+    expect(resolveRoute("/api/inquiries/inq_1/messages")).toEqual({
+      service: "provider",
+      path: "/api/inquiries/inq_1/messages",
+    });
+    // No bare list endpoint — only per-thread paths exist.
+    expect(resolveRoute("/api/inquiries")).toBeNull();
+  });
+
   it("returns null for anything else", () => {
     expect(resolveRoute("/api/unknown")).toBeNull();
     expect(resolveRoute("/api/authx/login")).toBeNull();
