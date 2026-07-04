@@ -163,6 +163,12 @@ const LIMITED_ROUTES: { pattern: RegExp; name: string; rule: RateRule }[] = [
   { pattern: /^\/api\/providers\/[^/]+\/inquiries$/, name: "inquiry", rule: RATE_LIMITS.inquiry },
   { pattern: /^\/api\/jobs\/[^/]+\/responses$/, name: "job-response", rule: RATE_LIMITS.review },
   { pattern: /^\/api\/providers\/[^/]+\/reviews$/, name: "review", rule: RATE_LIMITS.review },
+  // Abuse reports (#50) accept anonymous submissions, so the IP budget is the
+  // main spam control. One shared "report" bucket across the three target
+  // types, on the review budget.
+  { pattern: /^\/api\/providers\/[^/]+\/report$/, name: "report", rule: RATE_LIMITS.review },
+  { pattern: /^\/api\/photos\/[^/]+\/report$/, name: "report", rule: RATE_LIMITS.review },
+  { pattern: /^\/api\/reviews\/[^/]+\/report$/, name: "report", rule: RATE_LIMITS.review },
 ];
 
 export async function rateLimitMiddleware(c: Context, next: Next) {

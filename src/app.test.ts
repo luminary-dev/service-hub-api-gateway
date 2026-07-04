@@ -130,6 +130,21 @@ describe("rate limiting", () => {
     expect(blocked.status).toBe(429);
   });
 
+  it.each([
+    ["/api/providers/prov-1/report", "203.0.113.91"],
+    ["/api/photos/ph-1/report", "203.0.113.92"],
+    ["/api/reviews/rev-1/report", "203.0.113.93"],
+  ])("rate-limits %s with the report (review) budget", async (path, ip) => {
+    const headers = { "sec-fetch-site": "same-origin", "x-forwarded-for": ip };
+    // The review budget allows 10 submissions per window.
+    for (let i = 0; i < 10; i++) {
+      const res = await app.request(path, { method: "POST", headers });
+      expect(res.status).toBe(200);
+    }
+    const blocked = await app.request(path, { method: "POST", headers });
+    expect(blocked.status).toBe(429);
+  });
+
   it("does not rate-limit unlisted routes", async () => {
     for (let i = 0; i < 15; i++) {
       const res = await app.request("/api/auth/logout", {

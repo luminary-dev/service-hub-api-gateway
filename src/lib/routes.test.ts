@@ -41,6 +41,43 @@ describe("resolveRoute (routing table)", () => {
     });
   });
 
+  it("routes abuse reports to the service that owns the target (#50)", () => {
+    expect(resolveRoute("/api/providers/prov-1/report")).toEqual({
+      service: "provider",
+      path: "/api/providers/prov-1/report",
+    });
+    expect(resolveRoute("/api/photos/ph-1/report")).toEqual({
+      service: "provider",
+      path: "/api/photos/ph-1/report",
+    });
+    expect(resolveRoute("/api/reviews/rev-1/report")).toEqual({
+      service: "review",
+      path: "/api/reviews/rev-1/report",
+    });
+    // Only the report action exists under /api/photos.
+    expect(resolveRoute("/api/photos/ph-1")).toBeNull();
+    expect(resolveRoute("/api/photos")).toBeNull();
+  });
+
+  it("routes the admin report queues to their owning services (#50)", () => {
+    expect(resolveRoute("/api/admin/reports")).toEqual({
+      service: "provider",
+      path: "/api/admin/reports",
+    });
+    expect(resolveRoute("/api/admin/reports/rep-1")).toEqual({
+      service: "provider",
+      path: "/api/admin/reports/rep-1",
+    });
+    expect(resolveRoute("/api/admin/review-reports")).toEqual({
+      service: "review",
+      path: "/api/admin/review-reports",
+    });
+    expect(resolveRoute("/api/admin/review-reports/rep-1")).toEqual({
+      service: "review",
+      path: "/api/admin/review-reports/rep-1",
+    });
+  });
+
   it("routes the rest of admin to provider-service", () => {
     expect(resolveRoute("/api/admin/providers")).toEqual({ service: "provider", path: "/api/admin/providers" });
     expect(resolveRoute("/api/admin/providers/prov-1")).toEqual({

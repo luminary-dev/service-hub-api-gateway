@@ -31,11 +31,20 @@ export function resolveRoute(pathname: string): ResolvedRoute | null {
     return { service: "review", path: pathname };
   }
 
-  // Review routes carved out of the provider/admin namespaces.
+  // Review routes carved out of the provider/admin namespaces. This includes
+  // review abuse reports (#50): /api/reviews/:id/report and the admin queue
+  // at /api/admin/review-reports both belong to review-service; the provider/
+  // photo queue at /api/admin/reports falls through to provider-service below.
   if (/^\/api\/providers\/[^/]+\/reviews$/.test(pathname)) {
     return { service: "review", path: pathname };
   }
   if (pathname.startsWith("/api/admin/reviews/")) {
+    return { service: "review", path: pathname };
+  }
+  if (
+    pathname === "/api/admin/review-reports" ||
+    pathname.startsWith("/api/admin/review-reports/")
+  ) {
     return { service: "review", path: pathname };
   }
   if (pathname.startsWith("/api/reviews/")) {
@@ -43,6 +52,11 @@ export function resolveRoute(pathname: string): ResolvedRoute | null {
   }
 
   if (pathname.startsWith("/api/admin/")) {
+    return { service: "provider", path: pathname };
+  }
+
+  // Work-photo abuse reports (#50) — photos are provider-service data.
+  if (/^\/api\/photos\/[^/]+\/report$/.test(pathname)) {
     return { service: "provider", path: pathname };
   }
 
