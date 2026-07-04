@@ -343,11 +343,11 @@ describe("proxying", () => {
     }
   });
 
-  it("rewrites /api/files/* to the upstream /files/*", async () => {
+  it("routes /api/files/* to media-service, preserving the namespace", async () => {
     await app.request("/api/files/provider/avatars/a.jpg");
-    expect(upstreamRequests[0].url).toBe("http://localhost:4002/files/avatars/a.jpg");
+    expect(upstreamRequests[0].url).toBe("http://localhost:4006/files/provider/avatars/a.jpg");
     await app.request("/api/files/review/reviews/r.png");
-    expect(upstreamRequests[1].url).toBe("http://localhost:4003/files/reviews/r.png");
+    expect(upstreamRequests[1].url).toBe("http://localhost:4006/files/review/reviews/r.png");
   });
 
   it("routes provider reviews to review-service", async () => {

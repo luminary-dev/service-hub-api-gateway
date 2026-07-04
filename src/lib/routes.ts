@@ -1,4 +1,4 @@
-export type ServiceName = "identity" | "provider" | "review" | "job";
+export type ServiceName = "identity" | "provider" | "review" | "job" | "media";
 
 export type ResolvedRoute = { service: ServiceName; path: string };
 
@@ -9,17 +9,14 @@ export function resolveRoute(pathname: string): ResolvedRoute | null {
   if (containsInternal(pathname)) return null;
 
   // /api/files/<service>/* → upstream /files/*
-  if (pathname.startsWith("/api/files/provider/")) {
-    return {
-      service: "provider",
-      path: "/files/" + pathname.slice("/api/files/provider/".length),
-    };
-  }
-  if (pathname.startsWith("/api/files/review/")) {
-    return {
-      service: "review",
-      path: "/files/" + pathname.slice("/api/files/review/".length),
-    };
+  // File serving moved to media-service (#media extraction). The namespace
+  // segment is preserved so media picks the right store; existing
+  // /api/files/<provider|review>/... URLs keep resolving unchanged.
+  if (
+    pathname.startsWith("/api/files/provider/") ||
+    pathname.startsWith("/api/files/review/")
+  ) {
+    return { service: "media", path: "/files" + pathname.slice("/api/files".length) };
   }
 
   // Customer account history (#46): exact paths, each owned by the service
@@ -105,5 +102,7 @@ export function serviceUrl(service: ServiceName): string {
       return process.env.REVIEW_SERVICE_URL ?? "http://localhost:4003";
     case "job":
       return process.env.JOB_SERVICE_URL ?? "http://localhost:4004";
+    case "media":
+      return process.env.MEDIA_SERVICE_URL ?? "http://localhost:4006";
   }
 }

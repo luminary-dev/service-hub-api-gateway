@@ -132,14 +132,14 @@ describe("resolveRoute (routing table)", () => {
     });
   });
 
-  it("rewrites /api/files/* to upstream /files/*", () => {
+  it("routes /api/files/* to media-service, preserving the namespace", () => {
     expect(resolveRoute("/api/files/provider/avatars/a.jpg")).toEqual({
-      service: "provider",
-      path: "/files/avatars/a.jpg",
+      service: "media",
+      path: "/files/provider/avatars/a.jpg",
     });
     expect(resolveRoute("/api/files/review/reviews/r.png")).toEqual({
-      service: "review",
-      path: "/files/reviews/r.png",
+      service: "media",
+      path: "/files/review/reviews/r.png",
     });
   });
 
