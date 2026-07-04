@@ -116,6 +116,19 @@ describe("rate limiting", () => {
     expect((await mk("198.51.100.2")).status).toBe(200);
   });
 
+  it("rate-limits change-password with the strict auth budget", async () => {
+    const headers = {
+      "sec-fetch-site": "same-origin",
+      "x-forwarded-for": "203.0.113.88",
+    };
+    for (let i = 0; i < 8; i++) {
+      const res = await app.request("/api/auth/change-password", { method: "POST", headers });
+      expect(res.status).toBe(200);
+    }
+    const blocked = await app.request("/api/auth/change-password", { method: "POST", headers });
+    expect(blocked.status).toBe(429);
+  });
+
   it("does not rate-limit unlisted routes", async () => {
     for (let i = 0; i < 15; i++) {
       const res = await app.request("/api/auth/logout", {

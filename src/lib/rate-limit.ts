@@ -68,6 +68,9 @@ const LIMITED_ROUTES: { pattern: RegExp; name: string; rule: RateRule }[] = [
   { pattern: /^\/api\/auth\/login$/, name: "auth-login", rule: RATE_LIMITS.authStrict },
   { pattern: /^\/api\/auth\/forgot-password$/, name: "auth-forgot", rule: RATE_LIMITS.authStrict },
   { pattern: /^\/api\/auth\/reset-password$/, name: "auth-reset", rule: RATE_LIMITS.authStrict },
+  // change-password verifies the current password, so it's a guessing oracle
+  // for anyone holding a hijacked session — same budget as login.
+  { pattern: /^\/api\/auth\/change-password$/, name: "auth-change", rule: RATE_LIMITS.authStrict },
   { pattern: /^\/api\/auth\/register$/, name: "auth-register", rule: RATE_LIMITS.authSignup },
   { pattern: /^\/api\/auth\/resend-verification$/, name: "auth-resend", rule: RATE_LIMITS.resend },
   { pattern: /^\/api\/jobs$/, name: "job-post", rule: RATE_LIMITS.inquiry },
