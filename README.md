@@ -1,5 +1,8 @@
 # api-gateway (:4000)
 
+> [!WARNING]
+> This repository is a **read-only mirror** of [`services/api-gateway`](https://github.com/luminary-dev/service-hub/tree/main/services/api-gateway) in the service-hub monorepo. Do not push or open PRs here — changes land via monorepo PRs and are synced out with `npm run sync:repos`. Direct pushes are blocked by branch protection.
+
 Public entry point for Service Hub. Terminates CSRF checks, rate limiting and
 session verification, then reverse-proxies `/api/*` to the backend services.
 No database. The gateway is the only publicly exposed service — it **adds**
