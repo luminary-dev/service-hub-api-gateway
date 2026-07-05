@@ -230,6 +230,59 @@ describe("identity headers", () => {
   });
 });
 
+describe("body limit", () => {
+  it("rejects oversized request bodies with 413 before proxying", async () => {
+    const big = "a".repeat(6 * 1024 * 1024 + 1024); // just over the 6MB cap
+    const res = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "sec-fetch-site": "same-origin",
+        "content-type": "application/json",
+        "x-forwarded-for": "198.51.100.200",
+      },
+      body: big,
+    });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "Payload too large" });
+    expect(upstreamRequests).toHaveLength(0);
+  });
+
+  it("allows normal-sized bodies through", async () => {
+    const res = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "sec-fetch-site": "same-origin",
+        "content-type": "application/json",
+        "x-forwarded-for": "198.51.100.201",
+      },
+      body: JSON.stringify({ email: "a@b.com", password: "x" }),
+    });
+    expect(res.status).toBe(200);
+    expect(upstreamRequests).toHaveLength(1);
+  });
+});
+
+describe("origin poisoning protection", () => {
+  it("uses a configured WEB_ORIGIN over a spoofed x-forwarded-host", async () => {
+    process.env.WEB_ORIGIN = "https://baas.lk";
+    try {
+      await app.request("/api/providers", {
+        headers: {
+          "x-forwarded-proto": "https",
+          "x-forwarded-host": "evil.example",
+        },
+      });
+      // The attacker-controlled forwarded host must not reach x-origin (which
+      // seeds password-reset / verification email links).
+      expect(upstreamRequests.at(-1)!.headers.get("x-origin")).toBe(
+        "https://baas.lk"
+      );
+    } finally {
+      delete process.env.WEB_ORIGIN;
+    }
+  });
+});
+
 describe("request id", () => {
   const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
